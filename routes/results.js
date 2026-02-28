@@ -1,4 +1,5 @@
 // ─── RESULTS ROUTE ────────────────────────────────────────────────────────────
+// GET /api/results/:lab            — get results for admin export
 // POST /api/results/:lab          — save lab results (Module 05)
 // POST /api/results/:lab/unlock   — admin unlocks specific lab results
 
@@ -6,6 +7,38 @@ const router         = require('express').Router();
 const db             = require('../db');
 const { auth }       = require('../middleware/auth');
 const { VALID_LABS } = require('../config/labs');
+
+// ─── GET RESULTS FOR ADMIN EXPORT ────────────────────────────────────────────
+router.get('/:lab', auth('admin'), async (req, res) => {
+  const { lab } = req.params;
+  const { from, to } = req.query;
+
+  if (!VALID_LABS.includes(lab)) {
+    return res.status(400).json({ error: `Invalid lab: ${lab}` });
+  }
+  if (!from || !to) {
+    return res.status(400).json({ error: 'from and to date params required' });
+  }
+
+  try {
+    const result = await db.query(`
+      SELECT r.cr, r.labid, r.lab, r.panel_results, r.locked, r.created_at,
+             p.name, p.age, p.sex, p.date_received as date, p.suspicion,
+             o.panels
+      FROM lab_results r
+      LEFT JOIN patients p ON p.cr = r.cr AND p.labid = r.labid
+      LEFT JOIN lab_orders o ON o.cr = r.cr AND o.labid = r.labid AND o.lab = r.lab
+      WHERE r.lab = $1
+        AND r.created_at >= $2::date
+        AND r.created_at < ($3::date + INTERVAL '1 day')
+      ORDER BY r.created_at DESC
+    `, [lab, from, to]);
+    res.json({ status: 'ok', data: result.rows });
+  } catch (err) {
+    console.error('GET /results/' + lab + ' error:', err.message);
+    res.status(500).json({ error: 'Database error' });
+  }
+});
 
 // ─── SAVE RESULTS ────────────────────────────────────────────────────────────
 router.post('/:lab', auth('results'), async (req, res) => {
