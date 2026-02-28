@@ -15,7 +15,7 @@ router.get('/:lab', auth('acceptance'), async (req, res) => {
   try {
     const result = await db.query(`
       SELECT o.cr, o.labid, o.panels, o.payment, o.notes, o.created_at,
-             p.name, p.age, p.sex, p.date, p.sample, p.faculty, p.jr, p.sr,
+             p.name, p.age, p.sex, p.date_received as date, p.sample, p.faculty, p.jr, p.sr,
              p.tlc, p.bm_quality, p.blasts, p.eos, p.plasma,
              p.right_imprint, p.left_imprint, p.suspicion
       FROM lab_orders o
