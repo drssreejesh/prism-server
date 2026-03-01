@@ -17,9 +17,10 @@ const app = express();
 app.use(helmet());
 
 // ─── CORS ────────────────────────────────────────────────────────────────────
-// Only accept requests from the GitHub Pages frontend
+// Support multiple origins via comma-separated ALLOWED_ORIGIN env variable
 const allowedOrigins = [
-  process.env.ALLOWED_ORIGIN || 'https://drssreejesh.github.io',
+  ...(process.env.ALLOWED_ORIGIN || 'https://drssreejesh.github.io')
+    .split(',').map(o => o.trim()).filter(Boolean),
   // Allow localhost during development
   'http://localhost:3000',
   'http://localhost:5500',
