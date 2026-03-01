@@ -1,5 +1,5 @@
 // ─── RESULTS ROUTE ────────────────────────────────────────────────────────────
-// GET /api/results/:lab            — get results for admin export
+// GET /api/results/:lab            — get all cases for admin export (by order date)
 // POST /api/results/:lab          — save lab results (Module 05)
 // POST /api/results/:lab/unlock   — admin unlocks specific lab results
 
@@ -8,7 +8,7 @@ const db             = require('../db');
 const { auth }       = require('../middleware/auth');
 const { VALID_LABS } = require('../config/labs');
 
-// ─── GET RESULTS FOR ADMIN EXPORT ────────────────────────────────────────────
+// ─── GET ALL CASES FOR ADMIN EXPORT ──────────────────────────────────────────
 router.get('/:lab', auth('admin'), async (req, res) => {
   const { lab } = req.params;
   const { from, to } = req.query;
@@ -22,16 +22,21 @@ router.get('/:lab', auth('admin'), async (req, res) => {
 
   try {
     const result = await db.query(`
-      SELECT r.cr, r.labid, r.lab, r.panel_results, r.locked, r.created_at,
-             p.name, p.age, p.sex, p.date_received as date, p.suspicion,
-             o.panels
-      FROM lab_results r
-      LEFT JOIN patients p ON p.cr = r.cr AND p.labid = r.labid
-      LEFT JOIN lab_orders o ON o.cr = r.cr AND o.labid = r.labid AND o.lab = r.lab
-      WHERE r.lab = $1
-        AND r.created_at >= $2::date
-        AND r.created_at < ($3::date + INTERVAL '1 day')
-      ORDER BY r.created_at DESC
+      SELECT 
+        o.cr, o.labid, o.panels, o.created_at as order_date,
+        p.name, p.age, p.sex, p.date_received as date, p.suspicion,
+        p.faculty, p.jr, p.sr, p.sample, p.tlc, p.bm_quality,
+        p.blasts, p.eos, p.plasma, p.right_imprint, p.left_imprint,
+        a.unique_lab_id, a.panel_status, a.notes as acceptance_notes,
+        r.panel_results, r.locked
+      FROM lab_orders o
+      LEFT JOIN patients p ON p.cr = o.cr AND p.labid = o.labid
+      LEFT JOIN lab_acceptance a ON a.cr = o.cr AND a.labid = o.labid AND a.lab = o.lab
+      LEFT JOIN lab_results r ON r.cr = o.cr AND r.labid = o.labid AND r.lab = o.lab
+      WHERE o.lab = $1
+        AND o.created_at >= $2::date
+        AND o.created_at < ($3::date + INTERVAL '1 day')
+      ORDER BY o.created_at DESC
     `, [lab, from, to]);
     res.json({ status: 'ok', data: result.rows });
   } catch (err) {
